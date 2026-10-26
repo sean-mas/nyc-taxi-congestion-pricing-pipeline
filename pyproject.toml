@@ -1,7 +1,7 @@
 [project]
 name = "mle-data-pipeline-project"
 version = "0.1.0"
-requires-python = ">=3.13"
+requires-python = ">=3.13.17"
 dependencies = [
     "click>=8.5.0",
     "dbt-postgres>=1.11.0",
@@ -23,3 +23,9 @@ dev = [
 
 [tool.ty.environment]
 root = [".", "solution/src"]
+
+[tool.uv]
+required-version = ">=0.13.5"
+# Apply certificate fixes without adding unused runtime packages.
+# Prefect's server still uses FastAPI's removed min_items argument.
+constraint-dependencies = ["certifi>=2026.10.19", "pip>=26.2.2", "fastapi<0.155"]
