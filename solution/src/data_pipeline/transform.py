@@ -4,7 +4,6 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
 
 import pandas as pd
 
@@ -48,14 +47,9 @@ def _build_revenue_series(frame: pd.DataFrame) -> pd.Series:
             "Could not determine a revenue column. Expected 'total_amount' or known fare components."
         )
 
-    revenue = pd.Series(0.0, index=frame.index, dtype="float64")
-    for column in component_columns:
-        revenue = revenue.add(
-            pd.to_numeric(frame[column], errors="coerce").fillna(0.0),
-            fill_value=0.0,
-        )
-
-    return revenue
+    components = frame[component_columns].apply(pd.to_numeric, errors="coerce")
+    # An entirely missing fare is unknown, not a zero-revenue trip.
+    return components.sum(axis=1, min_count=1)
 
 
 def prepare_trip_frame(frame: pd.DataFrame) -> pd.DataFrame:
@@ -113,15 +107,14 @@ def calculate_daily_revenue(
 
     # Each file is summarized first, then the summaries are combined in case
     # multiple files contain trips for the same service date.
-    daily_revenue = cast(
-        pd.DataFrame,
+    daily_revenue = (
         pd.concat(per_file_frames, ignore_index=True)
         .groupby("service_date", as_index=False)
         .agg(
             trip_count=("trip_count", "sum"),
             daily_revenue=("daily_revenue", "sum"),
         )
-        .sort_values("service_date"),
+        .sort_values("service_date")
     )
     daily_revenue["daily_revenue"] = daily_revenue["daily_revenue"].round(2)
     daily_revenue["service_date"] = daily_revenue["service_date"].dt.strftime(

@@ -51,3 +51,18 @@ def test_calculate_daily_revenue_falls_back_to_component_columns(
         {"service_date": "2025-02-01", "trip_count": 2, "daily_revenue": 26.5}
     ]
     assert metadata["revenue_total"] == 26.5
+
+
+def test_unknown_fares_are_not_counted_as_zero_revenue(tmp_path: Path) -> None:
+    source = tmp_path / "trips.parquet"
+    pd.DataFrame(
+        {
+            "lpep_pickup_datetime": ["2025-02-01 08:00:00"] * 3,
+            "fare_amount": [None, 0.0, 10.0],
+            "tip_amount": [None, None, 2.0],
+        }
+    ).to_parquet(source, index=False)
+    daily, metadata = calculate_daily_revenue([source])
+    assert daily.iloc[0]["trip_count"] == 2
+    assert metadata["rows_read"] == 3
+    assert metadata["revenue_total"] == 12.0
