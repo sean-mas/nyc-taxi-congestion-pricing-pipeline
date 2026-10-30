@@ -92,9 +92,6 @@ cd <repo-name>
 uv sync
 ```
 
-> [!TIP]
-> The environment includes more than the reference solution uses. SQLAlchemy, a Postgres driver, dbt and Prefect are all installed, so you can extend the project without additional installs.
-
 ---
 
 ### 5. Open the Repository in VS Code
