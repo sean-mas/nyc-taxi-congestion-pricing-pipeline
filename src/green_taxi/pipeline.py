@@ -27,8 +27,12 @@ months_option = click.option(
 @click.group()
 def cli() -> None:
     """NYC Green Taxi ELT pipeline: download, load, transform, report."""
+    # force=True: importing dbt already attaches a WARNING-level handler to the
+    # root logger, which would otherwise make basicConfig do nothing.
     logging.basicConfig(
-        level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
+        level=logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s",
+        force=True,
     )
 
 
