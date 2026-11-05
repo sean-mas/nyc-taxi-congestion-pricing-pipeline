@@ -6,6 +6,7 @@ import click
 
 from .config import DEFAULT_MONTHS
 from .extract import download_months
+from .load import create_db_engine, load_raw_files, staged_paths
 
 
 def parse_months(raw_months: str) -> list[str]:
@@ -35,3 +36,10 @@ def cli() -> None:
 def download(months: str, force: bool) -> None:
     """Step 1: download the monthly Parquet files into data/raw/."""
     download_months(parse_months(months), force=force)
+
+
+@cli.command()
+@months_option
+def load(months: str) -> None:
+    """Step 2: copy the staged files unchanged into Postgres (raw.green_trips)."""
+    load_raw_files(staged_paths(parse_months(months)), create_db_engine())
