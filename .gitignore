@@ -169,3 +169,15 @@ solution/data/raw/*
 solution/data/processed/*
 !solution/data/raw/.gitkeep
 !solution/data/processed/.gitkeep
+
+# Pipeline data: staged downloads and generated outputs stay local
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# dbt build artifacts
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+logs/

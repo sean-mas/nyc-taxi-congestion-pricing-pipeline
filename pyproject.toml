@@ -1,26 +1,61 @@
 [project]
 name = "mle-data-pipeline-project"
 version = "0.1.0"
+description = "ELT pipeline: NYC Green Taxi trips (Jan-Mar 2025) to daily revenue, orchestrated with Prefect."
 requires-python = ">=3.13.17"
 dependencies = [
     "click>=8.5.0",
+    "dbt-postgres>=1.11.0",
+    "matplotlib>=3.10.0",
     "pandas>=3.0.5",
     "prefect>=3.8.6",
+    "prefect-dbt>=0.7.25",
+    "psycopg2-binary>=2.9.13",
     "pyarrow>=25.0.1",
+    "python-dotenv>=1.1.0",
     "requests>=2.34.2",
+    "sqlalchemy>=2.0.52",
 ]
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# The distribution keeps the template's name; the importable package is green_taxi.
+module-name = "green_taxi"
 
 [dependency-groups]
 dev = [
     "ipykernel>=7.3.0",
     "pytest>=9.1.1",
+    "ruff>=0.17.3",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: needs the Postgres container (docker compose up -d --wait)",
+]
+
+[tool.ruff]
+extend-exclude = ["solution"]
+
+[tool.ruff.lint]
+extend-select = ["I", "B", "UP"]
+
 [tool.ty.environment]
-root = [".", "solution/src"]
+root = [".", "src", "solution/src"]
 
 [tool.uv]
 required-version = ">=0.13.5"
 # Apply certificate fixes without adding unused runtime packages.
 # Prefect's server still uses FastAPI's removed min_items argument.
-constraint-dependencies = ["certifi>=2026.10.19", "pip>=26.2.2", "fastapi<0.155"]
+# dbt-core-experimental-parser 2.0.11 builds by downloading a wheel from GitHub,
+# which times out; 2.0.8 matches the workflow-orchestration course repo.
+constraint-dependencies = [
+    "certifi>=2026.10.19",
+    "pip>=26.2.2",
+    "fastapi<0.155",
+    "dbt-core-experimental-parser==2.0.8",
+]
