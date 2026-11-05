@@ -10,6 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
+DBT_DIR = PROJECT_ROOT / "dbt"
 
 # One .env file configures Docker Compose, this code and dbt. Variables already set
 # in the shell win, so tests and CI can point at another database.
@@ -57,3 +58,10 @@ def database_url(database: str | None = None) -> str:
     port = os.environ["POSTGRES_PORT"]
     name = database or os.environ["POSTGRES_DB"]
     return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
+
+
+# Tables built by dbt (see dbt/models/).
+STAGING_TABLE = "staging.stg_green_trips"
+DAILY_REVENUE_TABLE = "marts.fct_daily_revenue"
+# Trips above this amount are listed in the quality report for a human to check.
+LARGE_TRIP_AMOUNT = 500

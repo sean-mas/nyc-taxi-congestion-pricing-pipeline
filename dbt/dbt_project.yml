@@ -1,0 +1,24 @@
+name: green_taxi
+version: "1.0.0"
+profile: green_taxi
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+flags:
+  send_anonymous_usage_stats: false
+
+vars:
+  # Reporting period: Q1 2025. The end date is exclusive.
+  period_start: "2025-01-01"
+  period_end: "2025-04-01"
+
+models:
+  green_taxi:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table

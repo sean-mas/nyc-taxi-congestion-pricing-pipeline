@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: stg_green_trips
+    description: Trips picked up in the reporting period, renamed and typed.
+    columns:
+      - name: service_date
+        description: Pickup date; revenue is counted on this day.
+        data_tests:
+          - not_null
+      - name: total_amount
+        description: Full charge (fare, extras, taxes, tip, tolls, surcharges); negative for refunds.
+        data_tests:
+          - not_null
+      - name: is_refund
+        data_tests:
+          - not_null
