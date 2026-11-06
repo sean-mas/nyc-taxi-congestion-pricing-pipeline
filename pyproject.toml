@@ -45,14 +45,11 @@ markers = [
 # Show the green_taxi module's log lines in Prefect, with or without a .env file.
 extra_loggers = "green_taxi"
 
-[tool.ruff]
-extend-exclude = ["solution"]
-
 [tool.ruff.lint]
 extend-select = ["I", "B", "UP"]
 
 [tool.ty.environment]
-root = [".", "src", "solution/src"]
+root = [".", "src"]
 
 [tool.uv]
 required-version = ">=0.13.5"
