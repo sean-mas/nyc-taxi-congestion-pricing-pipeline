@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: fct_daily_revenue
+    description: One row per day in the reporting period with trips and revenue.
+    columns:
+      - name: service_date
+        description: Pickup date.
+        data_tests:
+          - unique
+          - not_null
+      - name: trip_count
+        description: Trips that started this day, excluding refund rows.
+        data_tests:
+          - not_null
+      - name: refund_count
+        data_tests:
+          - not_null
+      - name: gross_revenue
+        description: Sum of non-negative total_amount.
+        data_tests:
+          - not_null
+      - name: refunds
+        description: Sum of negative total_amount (zero or below).
+        data_tests:
+          - not_null
+      - name: net_revenue
+        description: gross_revenue + refunds. This is the revenue per day the brief asks for.
+        data_tests:
+          - not_null

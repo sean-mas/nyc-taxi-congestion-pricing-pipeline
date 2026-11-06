@@ -7,6 +7,8 @@ import click
 from .config import DEFAULT_MONTHS
 from .extract import download_months
 from .load import create_db_engine, load_raw_files, staged_paths
+from .report import export_outputs
+from .transform import run_dbt_build
 
 
 def parse_months(raw_months: str) -> list[str]:
@@ -43,3 +45,28 @@ def download(months: str, force: bool) -> None:
 def load(months: str) -> None:
     """Step 2: copy the staged files unchanged into Postgres (raw.green_trips)."""
     load_raw_files(staged_paths(parse_months(months)), create_db_engine())
+
+
+@cli.command()
+def transform() -> None:
+    """Step 3: build and test the dbt models (staging view, daily revenue table)."""
+    run_dbt_build()
+
+
+@cli.command()
+def report() -> None:
+    """Step 4: reconcile row counts and write the outputs to data/processed/."""
+    export_outputs(create_db_engine())
+
+
+@cli.command()
+@months_option
+@click.option("--force", is_flag=True, help="Download again even if already staged.")
+def run(months: str, force: bool) -> None:
+    """Run every step in order: download, load, transform, report."""
+    selected_months = parse_months(months)
+    engine = create_db_engine()
+    download_months(selected_months, force=force)
+    load_raw_files(staged_paths(selected_months), engine)
+    run_dbt_build()
+    export_outputs(engine)
