@@ -1,6 +1,6 @@
 # NYC Taxi Congestion Pricing Pipeline
 
-[![CI](https://github.com/sean-mas/mle-data-pipeline-project/actions/workflows/ci.yml/badge.svg)](https://github.com/sean-mas/mle-data-pipeline-project/actions/workflows/ci.yml)
+[![CI](https://github.com/sean-mas/nyc-taxi-congestion-pricing-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/sean-mas/nyc-taxi-congestion-pricing-pipeline/actions/workflows/ci.yml)
 
 A data pipeline that downloads NYC Green Taxi trip records, loads them into Postgres, turns them into revenue per day with dbt, and runs on a schedule with Prefect. It answers one question: did New York's congestion pricing change Green Taxi trips and revenue?
 
@@ -11,7 +11,7 @@ A data pipeline that downloads NYC Green Taxi trip records, loads them into Post
 ## Context
 
 - **What it is:** the final project of the data pipeline module in the Machine Learning Engineering course by Spiced Academy (neuefische), built in November 2026.
-- **The brief** ([full text](course/project-brief.md)): download the Green Taxi trip records for January to March 2025 into a local staging folder, then build an ETL or ELT pipeline that calculates revenue per day. Bonus: orchestrate it with Prefect.
+- **The brief:** download the Green Taxi trip records for January to March 2025 into a local staging folder, then build an ETL or ELT pipeline that calculates revenue per day. Bonus: orchestrate it with Prefect.
 - **What I added:** an ELT design (raw data in Postgres, cleaning in tested dbt SQL), checks that stop a run before a wrong number reaches the output, CI on every pull request, and a Prefect flow with retries, result tables in its web UI and a schedule. I then extended the pipeline from 3 to 18 months to answer a real question about congestion pricing.
 - **Cross-check:** a classmate's independently built pipeline reached the same January to March numbers: 146,475 trips, 90 days, $3,395,290.56.
 - **How it was built:** with [Claude Code](https://claude.com/claude-code) as an AI pair programmer. The choices and trade-offs behind it are in [docs/decisions.md](docs/decisions.md).
@@ -161,10 +161,7 @@ Run them with `uv run pytest`. The integration tests need the Postgres container
 ├── docs/decisions.md    # why the pipeline is built this way
 ├── notebooks/           # exploration only, not part of the pipeline
 ├── src/green_taxi/      # extract, load, transform, report, CLI and Prefect flow
-├── tests/
-├── course/              # the original course brief
-├── solution/            # the course's reference solution, untouched
-└── PORTFOLIO.md         # what to change before making the repo public
+└── tests/
 ```
 
 <details>
