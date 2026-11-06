@@ -18,7 +18,7 @@ from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
 from .config import DBT_DIR, DEFAULT_MONTHS
 from .extract import DownloadResult, download_month
 from .load import LoadResult, create_db_engine, load_raw_file
-from .months import parse_months, reporting_period
+from .months import ReportingPeriod, parse_months, reporting_period
 from .report import ReportOutputs, export_outputs
 from .transform import dbt_build_args
 
@@ -44,9 +44,9 @@ def load_task(path: Path) -> LoadResult:
 
 
 @task(name="export-outputs", cache_policy=NO_CACHE)
-def report_task() -> ReportOutputs:
-    """Reconcile row counts and write CSV, Parquet, chart and quality report."""
-    return export_outputs(create_db_engine())
+def report_task(period: ReportingPeriod) -> ReportOutputs:
+    """Reconcile row counts and write CSV, Parquet, charts and quality report."""
+    return export_outputs(create_db_engine(), period)
 
 
 def usd(amount: float) -> str:
@@ -155,7 +155,7 @@ def green_taxi_elt(
         settings=PrefectDbtSettings(project_dir=DBT_DIR, profiles_dir=DBT_DIR)
     ).invoke(dbt_build_args(period))
 
-    outputs = report_task()
+    outputs = report_task(period)
     publish_artifacts(outputs)
     return outputs.quality_report
 

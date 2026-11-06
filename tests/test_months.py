@@ -56,3 +56,7 @@ def test_a_december_period_ends_on_the_first_of_january() -> None:
 def test_months_with_a_gap_are_rejected() -> None:
     with pytest.raises(ValueError, match="2024-11, 2024-12"):
         reporting_period(["2024-10", "2025-01"])
+
+
+def test_the_period_lists_its_months() -> None:
+    assert reporting_period(["2024-12", "2025-01"]).months == ["2024-12", "2025-01"]

@@ -3,7 +3,7 @@
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 MONTH_PATTERN = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
 
@@ -57,6 +57,12 @@ class ReportingPeriod:
 
     start: date
     end: date
+
+    @property
+    def months(self) -> list[str]:
+        """The months the period covers, as YYYY-MM."""
+        last_day = self.end - timedelta(days=1)
+        return month_range(f"{self.start:%Y-%m}", f"{last_day:%Y-%m}")
 
     def dbt_vars(self) -> dict[str, str]:
         """The period as the vars dbt_project.yml expects."""

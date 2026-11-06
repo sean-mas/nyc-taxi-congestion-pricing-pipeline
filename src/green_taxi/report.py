@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 from matplotlib.dates import DateFormatter
 from matplotlib.figure import Figure
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, bindparam, text
 
 from .config import (
     CONGESTION_IMPACT_TABLE,
@@ -19,7 +19,9 @@ from .config import (
     RAW_SCHEMA,
     RAW_TABLE,
     STAGING_TABLE,
+    source_filename,
 )
+from .months import ReportingPeriod
 
 logger = logging.getLogger(__name__)
 
@@ -104,15 +106,24 @@ def compare_periods(impact: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def build_quality_report(engine: Engine, daily_revenue: pd.DataFrame) -> dict:
-    """Count rows at every stage so nothing can disappear unnoticed."""
+def build_quality_report(
+    engine: Engine, period: ReportingPeriod, daily_revenue: pd.DataFrame
+) -> dict:
+    """Count rows at every stage so nothing can disappear unnoticed.
+
+    Only the chosen months' files count, like in the staging view, so files that
+    earlier runs left in the raw table don't show up as dropped rows.
+    """
+    files = [source_filename(month) for month in period.months]
     with engine.connect() as connection:
         rows_per_file = dict(
             connection.execute(
                 text(
                     f"SELECT source_file, count(*) FROM {RAW_SCHEMA}.{RAW_TABLE} "
+                    "WHERE source_file IN :files "
                     "GROUP BY source_file ORDER BY source_file"
-                )
+                ).bindparams(bindparam("files", expanding=True)),
+                {"files": files},
             ).all()
         )
         staged_rows = connection.execute(
@@ -288,12 +299,14 @@ def save_congestion_chart(
     return path
 
 
-def export_outputs(engine: Engine, output_dir: Path = PROCESSED_DIR) -> ReportOutputs:
+def export_outputs(
+    engine: Engine, period: ReportingPeriod, output_dir: Path = PROCESSED_DIR
+) -> ReportOutputs:
     """Write the daily revenue (CSV, Parquet), the congestion pricing comparison,
-    two charts and the quality report."""
+    two charts and the quality report for the period dbt built."""
     output_dir.mkdir(parents=True, exist_ok=True)
     daily_revenue = read_daily_revenue(engine)
-    quality_report = build_quality_report(engine, daily_revenue)
+    quality_report = build_quality_report(engine, period, daily_revenue)
     impact = read_congestion_impact(engine)
     comparison = compare_periods(impact)
 

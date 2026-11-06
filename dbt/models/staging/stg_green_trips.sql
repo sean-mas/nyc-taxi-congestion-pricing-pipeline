@@ -4,6 +4,12 @@
 with source as (
 
     select * from {{ source('raw', 'green_trips') }}
+    -- Only the files of the chosen months (green_tripdata_YYYY-MM.parquet), so the
+    -- result depends on --months alone, not on what earlier runs left in the table.
+    where to_date(substring(source_file from '\d{4}-\d{2}'), 'YYYY-MM')
+            >= '{{ var("period_start") }}'
+      and to_date(substring(source_file from '\d{4}-\d{2}'), 'YYYY-MM')
+            < '{{ var("period_end") }}'
 
 )
 
@@ -34,5 +40,6 @@ select
     source_file
 from source
 -- A few trips in the files are dated outside the period (e.g. a month earlier).
+-- Trips dated in a neighbouring chosen month still count, on their pickup date.
 where lpep_pickup_datetime >= '{{ var("period_start") }}'
   and lpep_pickup_datetime < '{{ var("period_end") }}'

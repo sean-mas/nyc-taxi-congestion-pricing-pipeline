@@ -74,9 +74,10 @@ def transform(months: list[str]) -> None:
 
 
 @cli.command()
-def report() -> None:
+@months_option
+def report(months: list[str]) -> None:
     """Step 4: reconcile row counts and write the outputs to data/processed/."""
-    export_outputs(create_db_engine())
+    export_outputs(create_db_engine(), period_for(months))
 
 
 @cli.command()
@@ -90,4 +91,4 @@ def run(months: list[str], force: bool) -> None:
     download_months(months, force=force)
     load_raw_files(staged_paths(months), engine)
     run_dbt_build(period)
-    export_outputs(engine)
+    export_outputs(engine, period)

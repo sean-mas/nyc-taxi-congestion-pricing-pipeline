@@ -11,6 +11,7 @@ from green_taxi.load import load_raw_file
 from green_taxi.months import reporting_period
 from green_taxi.report import export_outputs
 from green_taxi.transform import run_dbt_build
+from tests.conftest import make_trips_file, trip
 
 pytestmark = pytest.mark.integration
 
@@ -18,9 +19,10 @@ pytestmark = pytest.mark.integration
 def test_sample_trips_become_daily_revenue(
     sample_trips_file: Path, test_engine: Engine, tmp_path: Path
 ) -> None:
+    january = reporting_period(["2025-01"])
     load_raw_file(sample_trips_file, test_engine)
-    run_dbt_build(reporting_period(["2025-01"]))
-    outputs = export_outputs(test_engine, tmp_path / "processed")
+    run_dbt_build(january)
+    outputs = export_outputs(test_engine, january, tmp_path / "processed")
 
     daily = pd.read_csv(outputs.daily_revenue_csv)
     assert daily.to_dict(orient="records") == [
@@ -80,9 +82,10 @@ def test_sample_trips_become_daily_revenue(
 def test_weekdays_are_compared_before_and_after_5_january(
     sample_trips_file: Path, test_engine: Engine, tmp_path: Path
 ) -> None:
+    january = reporting_period(["2025-01"])
     load_raw_file(sample_trips_file, test_engine)
-    run_dbt_build(reporting_period(["2025-01"]))
-    outputs = export_outputs(test_engine, tmp_path / "processed")
+    run_dbt_build(january)
+    outputs = export_outputs(test_engine, january, tmp_path / "processed")
 
     comparison = pd.read_csv(outputs.congestion_comparison_csv)
     weekdays = comparison[comparison["day_type"] == "weekday"].drop(
@@ -127,3 +130,25 @@ def test_weekdays_are_compared_before_and_after_5_january(
     ]
     assert set(comparison["winter"]) == {"2024/25"}
     assert outputs.congestion_chart_png.stat().st_size > 0
+
+
+def test_only_the_chosen_months_files_count(
+    sample_trips_file: Path, test_engine: Engine, tmp_path: Path
+) -> None:
+    # An earlier run left a December file in the raw table, with one trip
+    # dated in January. A January-only run must give the same result as if
+    # that file had never been loaded.
+    december_file = make_trips_file(
+        tmp_path / "green_tripdata_2024-12.parquet",
+        [trip("2025-01-02 09:00", 1, 50.0, 40.0)],
+    )
+    january = reporting_period(["2025-01"])
+    load_raw_file(december_file, test_engine)
+    load_raw_file(sample_trips_file, test_engine)
+    run_dbt_build(january)
+    outputs = export_outputs(test_engine, january, tmp_path / "processed")
+
+    report = outputs.quality_report
+    assert report["rows_per_file"] == {"green_tripdata_2025-01.parquet": 9}
+    assert report["dropped_outside_period"] == 1
+    assert report["net_revenue"] == 110.75
