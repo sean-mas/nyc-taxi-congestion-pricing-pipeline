@@ -6,12 +6,12 @@ A data pipeline that downloads NYC Green Taxi trip records, loads them into Post
 
 **Result:** congestion pricing (from 5 January 2025) left no visible mark on Green Taxi trips or revenue. The drop after 5 January is the usual winter dip, and it was smaller than the year before. Over 18 months (October 2023 to March 2025): 1,001,104 trips in 548 days, net revenue $24,157,147.48. The course quarter alone (January to March 2025): 90 days, net revenue $3,395,290.56.
 
-[Context](#context) · [Results](#results) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Decisions](docs/decisions.md) · [Tests](#tests-and-checks)
+[Context](#context) · [Results](#results) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Decisions](docs/decisions.md) · [Tests](#tests-and-checks) · [Review questions](#review-questions)
 
 ## Context
 
 - **What it is:** the final project of the data pipeline module in the Machine Learning Engineering course by Spiced Academy (neuefische), built in November 2026.
-- **The brief:** download the Green Taxi trip records for January to March 2025 into a local staging folder, then build an ETL or ELT pipeline that calculates revenue per day. Bonus: orchestrate it with Prefect.
+- **The brief:** download the Green Taxi trip records for January to March 2025 into a local staging folder, then build an ETL or ELT pipeline that calculates revenue per day. Bonus: orchestrate it with Prefect. The course result comes from `uv run green-taxi run --months 2025-01..2025-03` (see [Quick start](#quick-start)).
 - **What I added:** an ELT design (raw data in Postgres, cleaning in tested dbt SQL), checks that stop a run before a wrong number reaches the output, CI on every pull request, and a Prefect flow with retries, result tables in its web UI and a schedule. I then extended the pipeline from 3 to 18 months to answer a real question about congestion pricing.
 - **Cross-check:** a classmate's independently built pipeline reached the same January to March numbers: 146,475 trips, 90 days, $3,395,290.56.
 - **How it was built:** with [Claude Code](https://claude.com/claude-code) as an AI pair programmer. The choices and trade-offs behind it are in [docs/decisions.md](docs/decisions.md).
@@ -110,13 +110,19 @@ flowchart LR
 | 4. Report | Counts rows at every stage and writes the outputs to `data/processed/`. | [report.py](src/green_taxi/report.py) |
 | Orchestrate | The same functions as Prefect tasks: parallel downloads with 3 retries, each dbt table and test as its own task, and the results as tables in the Prefect UI. | [flow.py](src/green_taxi/flow.py) |
 
-The raw data is stored first and cleaned with SQL afterwards (ELT, not ETL). That choice and the others are in [docs/decisions.md](docs/decisions.md).
+**ETL or ELT?** Both have the same three stages, in a different order. ETL (extract, transform, load) cleans the data in Python *before* storing it. ELT (extract, load, transform) stores the raw data *first* and cleans it with SQL inside the database. This pipeline is **ELT**, because:
+
+- the raw copy stays untouched, so a cleaning rule can change and run again without downloading anything;
+- every row can be traced back to its source file;
+- dbt splits the SQL into layers (raw, cleaned trips, final tables) and tests each one, and a failing test stops the run.
+
+For one quarter, ETL with pandas would have been simpler. That trade-off and the other choices are in [docs/decisions.md](docs/decisions.md).
 
 ![An 18-month run in the Prefect UI: the run, the daily revenue table, the congestion pricing comparison and the quality report](assets/prefect_demo.gif)
 
 ## What the data needed
 
-From exploring January to March 2025 in [the notebook](notebooks/01_explore_green_taxi.ipynb), then checking all 18 months:
+From exploring January to March 2025 in [the notebook](exploration/01_explore_green_taxi.ipynb), then checking all 18 months:
 
 | Finding | Rule |
 |---|---|
@@ -159,13 +165,14 @@ Run them with `uv run pytest`. The integration tests need the Postgres container
 │   ├── seeds/           # the two winters compared, as a CSV
 │   └── tests/           # reconciliation and fee checks
 ├── docs/decisions.md    # why the pipeline is built this way
-├── notebooks/           # exploration only, not part of the pipeline
+├── exploration/         # notebook for exploring the data, not part of the pipeline
 ├── src/green_taxi/      # extract, load, transform, report, CLI and Prefect flow
 └── tests/
 ```
 
-<details>
-<summary>Course reflection (3 review questions)</summary>
+## Review questions
+
+The course's three review questions, answered.
 
 **1. What are the steps you took to complete the project?**
 - Planned the pipeline first: ELT with Postgres and dbt, orchestrated with Prefect, delivered as small pull requests.
@@ -189,5 +196,3 @@ Run them with `uv run pytest`. The integration tests need the Postgres container
 - Break revenue down by borough and payment type with a taxi-zone lookup.
 - Publish the dbt docs (a lineage graph of the tables) and add a small dashboard.
 - Use Postgres `COPY` for faster loads at larger volumes.
-
-</details>
