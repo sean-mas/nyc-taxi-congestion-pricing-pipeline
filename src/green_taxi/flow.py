@@ -22,8 +22,8 @@ from .months import ReportingPeriod, parse_months, reporting_period
 from .report import ReportOutputs, export_outputs
 from .transform import dbt_build_args
 
-# Prefect sends the green_taxi log lines to the UI (PREFECT_LOGGING_EXTRA_LOGGERS in
-# .env) but doesn't set their level, so INFO lines would be dropped without this.
+# Prefect sends the green_taxi log lines to the UI ([tool.prefect.logging] in
+# pyproject.toml) but doesn't set their level, so INFO lines would be dropped without this.
 logging.getLogger("green_taxi").setLevel(logging.INFO)
 
 # Downloads talk to the internet, so they're the step most likely to fail for a

@@ -1,13 +1,14 @@
-# Connection settings come from the same POSTGRES_* variables as the Python code (.env).
+# Same POSTGRES_* settings and defaults as the Python code (src/green_taxi/config.py);
+# an optional .env overrides them.
 green_taxi:
   target: dev
   outputs:
     dev:
       type: postgres
-      host: "{{ env_var('POSTGRES_HOST') }}"
-      port: "{{ env_var('POSTGRES_PORT') | as_number }}"
-      dbname: "{{ env_var('POSTGRES_DB') }}"
-      user: "{{ env_var('POSTGRES_USER') }}"
-      password: "{{ env_var('POSTGRES_PASSWORD') }}"
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      port: "{{ env_var('POSTGRES_PORT', '5433') | as_number }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'green_taxi') }}"
+      user: "{{ env_var('POSTGRES_USER', 'postgres') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'postgres') }}"
       schema: public
       threads: 4

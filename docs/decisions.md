@@ -85,3 +85,17 @@ Short log of the choices behind the pipeline: what was decided, why, and the alt
 - **Decision:** compare weekdays with weekdays and weekends with weekends.
 - **Why:** they have different trip patterns, and the before and after periods don't hold the same mix of them.
 - **Not picked:** all days together.
+
+## Running it
+
+### 14. Runs without a configuration file
+
+- **Decision:** the database settings have defaults in the code, the dbt profile and Docker Compose. A `.env` file is optional and only overrides them.
+- **Why:** a reviewer gets results in three commands (`uv sync`, `docker compose up -d --wait`, `uv run green-taxi run`). The idea came from comparing with a classmate's project, whose first run needs no setup at all.
+- **Not picked:** requiring `.env` and stopping when it's missing (the pattern from the course's API project). That's the right call for real secrets, but these are local Docker passwords that protect nothing outside the laptop.
+
+### 15. Prefect works with or without its server
+
+- **Decision:** no Prefect server address by default. Copying `.env.example` to `.env` points runs at the local server; the log setting lives in `pyproject.toml`, so it applies either way.
+- **Why:** without a server, Prefect starts a temporary one for each run, so the flow works right after cloning. With the server, runs are kept and visible in the web UI.
+- **Not picked:** always requiring the server, where every flow run fails with "Failed to reach API" until it's started. A production-like setup (server and worker in Docker, a work pool) is the next step, not part of this project.

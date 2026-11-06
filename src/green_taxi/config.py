@@ -14,8 +14,8 @@ RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 DBT_DIR = PROJECT_ROOT / "dbt"
 
-# One .env file configures Docker Compose, this code and dbt. Variables already set
-# in the shell win, so tests and CI can point at another database.
+# An optional .env file overrides the defaults below for Docker Compose, this code and
+# dbt. Variables already set in the shell win, so tests and CI can point elsewhere.
 load_dotenv(PROJECT_ROOT / ".env")
 
 # Two winters, to answer whether congestion pricing (from 5 January 2025) changed
@@ -42,27 +42,30 @@ RAW_SCHEMA = "raw"
 RAW_TABLE = "green_trips"
 LOAD_BATCH_ROWS = 100_000
 
-DATABASE_ENV_VARS = (
-    "POSTGRES_HOST",
-    "POSTGRES_PORT",
-    "POSTGRES_DB",
-    "POSTGRES_USER",
-    "POSTGRES_PASSWORD",
-)
+# Defaults match docker-compose.yaml and dbt/profiles.yml, so a fresh clone runs
+# without any configuration file. They're local-only credentials for the Docker
+# database on this laptop, not secrets.
+DATABASE_DEFAULTS = {
+    "POSTGRES_HOST": "localhost",
+    "POSTGRES_PORT": "5433",
+    "POSTGRES_DB": "green_taxi",
+    "POSTGRES_USER": "postgres",
+    "POSTGRES_PASSWORD": "postgres",
+}
+
+
+def database_setting(name: str) -> str:
+    """Return a POSTGRES_* setting from the environment or .env, else its default."""
+    return os.getenv(name) or DATABASE_DEFAULTS[name]
 
 
 def database_url(database: str | None = None) -> str:
-    """Build the SQLAlchemy URL from the POSTGRES_* variables, failing fast if any is missing."""
-    missing = [name for name in DATABASE_ENV_VARS if not os.getenv(name)]
-    if missing:
-        raise RuntimeError(
-            f"Missing {', '.join(missing)}. Copy .env.example to .env and try again."
-        )
-    user = os.environ["POSTGRES_USER"]
-    password = os.environ["POSTGRES_PASSWORD"]
-    host = os.environ["POSTGRES_HOST"]
-    port = os.environ["POSTGRES_PORT"]
-    name = database or os.environ["POSTGRES_DB"]
+    """Build the SQLAlchemy URL for the project database (or another one on it)."""
+    user = database_setting("POSTGRES_USER")
+    password = database_setting("POSTGRES_PASSWORD")
+    host = database_setting("POSTGRES_HOST")
+    port = database_setting("POSTGRES_PORT")
+    name = database or database_setting("POSTGRES_DB")
     return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
 
 
