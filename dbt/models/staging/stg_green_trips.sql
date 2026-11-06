@@ -17,10 +17,22 @@ select
     payment_type::integer as payment_type,
     -- numeric instead of float, so sums of money are exact.
     total_amount::numeric(12, 2) as total_amount,
+    -- What the driver and the taxi company keep: the metered fare, extras (rush-hour
+    -- and overnight charges) and the tip. total_amount also holds taxes, tolls and
+    -- surcharges that are passed on to the city, the state and the MTA. Added up from
+    -- its own parts, because the parts don't always add up to total_amount.
+    (
+        fare_amount::numeric(12, 2)
+        + extra::numeric(12, 2)
+        + tip_amount::numeric(12, 2)
+    ) as fare_revenue,
+    -- The congestion pricing fee only exists from 5 January 2025; earlier files
+    -- have no such column, so no fee means zero.
+    coalesce(cbd_congestion_fee, 0)::numeric(12, 2) as cbd_congestion_fee,
     -- Negative amounts are refunds, disputes and voided trips.
     total_amount < 0 as is_refund,
     source_file
 from source
--- A few trips in the files are dated outside the period (e.g. December 2024).
+-- A few trips in the files are dated outside the period (e.g. a month earlier).
 where lpep_pickup_datetime >= '{{ var("period_start") }}'
   and lpep_pickup_datetime < '{{ var("period_end") }}'

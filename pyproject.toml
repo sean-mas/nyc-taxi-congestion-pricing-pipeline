@@ -1,7 +1,7 @@
 [project]
 name = "mle-data-pipeline-project"
 version = "0.1.0"
-description = "ELT pipeline: NYC Green Taxi trips (Jan-Mar 2025) to daily revenue, orchestrated with Prefect."
+description = "ELT pipeline: NYC Green Taxi trips to daily revenue and a congestion pricing comparison, orchestrated with Prefect."
 requires-python = ">=3.13.17"
 dependencies = [
     "click>=8.5.0",

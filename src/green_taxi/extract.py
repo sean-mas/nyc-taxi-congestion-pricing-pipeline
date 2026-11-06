@@ -1,7 +1,6 @@
 """Step 1, extract: download monthly Green Taxi Parquet files into the staging folder."""
 
 import logging
-import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,10 +14,9 @@ from .config import (
     SOURCE_BASE_URL,
     source_filename,
 )
+from .months import validate_month
 
 logger = logging.getLogger(__name__)
-
-MONTH_PATTERN = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
 
 
 @dataclass(frozen=True)
@@ -28,13 +26,6 @@ class DownloadResult:
     month: str
     path: Path
     downloaded: bool  # False when the file was already staged and reused
-
-
-def validate_month(month: str) -> str:
-    """Return the month unchanged, or fail early if it isn't in YYYY-MM form."""
-    if not MONTH_PATTERN.fullmatch(month):
-        raise ValueError(f"Month must look like YYYY-MM, got {month!r}")
-    return month
 
 
 def build_url(month: str, base_url: str = SOURCE_BASE_URL) -> str:

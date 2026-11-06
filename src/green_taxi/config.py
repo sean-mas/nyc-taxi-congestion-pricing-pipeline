@@ -5,6 +5,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .months import month_range
+
 # Resolve paths from this file so commands work from any current directory.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
@@ -16,8 +18,12 @@ DBT_DIR = PROJECT_ROOT / "dbt"
 # in the shell win, so tests and CI can point at another database.
 load_dotenv(PROJECT_ROOT / ".env")
 
-# The brief asks for the first three months of 2025.
-DEFAULT_MONTHS = ("2025-01", "2025-02", "2025-03")
+# Two winters, to answer whether congestion pricing (from 5 January 2025) changed
+# Green Taxi trips and revenue. October 2024 to March 2025 holds the start of the
+# fee; October 2023 to March 2024 is the same season a year earlier, without it, to
+# tell the fee apart from the normal winter dip. The months between them keep the
+# period free of gaps. (The course brief only asked for January to March 2025.)
+DEFAULT_MONTHS = tuple(month_range("2023-10", "2025-03"))
 
 # Public NYC TLC trip record files, one Parquet file per taxi type and month.
 SOURCE_BASE_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data"
@@ -63,5 +69,6 @@ def database_url(database: str | None = None) -> str:
 # Tables built by dbt (see dbt/models/).
 STAGING_TABLE = "staging.stg_green_trips"
 DAILY_REVENUE_TABLE = "marts.fct_daily_revenue"
+CONGESTION_IMPACT_TABLE = "marts.fct_congestion_pricing_impact"
 # Trips above this amount are listed in the quality report for a human to check.
 LARGE_TRIP_AMOUNT = 500

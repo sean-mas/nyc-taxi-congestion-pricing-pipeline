@@ -3,6 +3,7 @@ version: "1.0.0"
 profile: green_taxi
 
 model-paths: ["models"]
+seed-paths: ["seeds"]
 test-paths: ["tests"]
 macro-paths: ["macros"]
 
@@ -10,8 +11,9 @@ flags:
   send_anonymous_usage_stats: false
 
 vars:
-  # Reporting period: Q1 2025. The end date is exclusive.
-  period_start: "2025-01-01"
+  # Reporting period; the end date is exclusive. The pipeline sets both from
+  # --months (dbt build --vars ...); these defaults match its default months.
+  period_start: "2023-10-01"
   period_end: "2025-04-01"
 
 models:
@@ -22,3 +24,7 @@ models:
     marts:
       +schema: marts
       +materialized: table
+
+seeds:
+  green_taxi:
+    +schema: reference
