@@ -1,5 +1,5 @@
 -- One row per trip picked up in the reporting period, with clear names and types.
--- Each rule comes from a finding in notebooks/01_explore_green_taxi.ipynb.
+-- Each rule comes from a finding in exploration/01_explore_green_taxi.ipynb.
 
 with source as (
 
