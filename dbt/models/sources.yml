@@ -6,7 +6,9 @@ sources:
     description: Unchanged copy of the TLC Green Taxi Parquet files, loaded by green_taxi.load.
     tables:
       - name: green_trips
-        description: One row per trip record, as published, plus source_file and loaded_at.
+        description: >
+          One row per trip record, as published, plus source_file and loaded_at.
+          Holds every file ever loaded; staging keeps the chosen months' files.
         columns:
           - name: lpep_pickup_datetime
             data_tests:

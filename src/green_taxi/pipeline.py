@@ -7,20 +7,35 @@ import click
 from .config import DEFAULT_MONTHS
 from .extract import download_months
 from .load import create_db_engine, load_raw_files, staged_paths
+from .months import ReportingPeriod, parse_months, reporting_period
 from .report import export_outputs
 from .transform import run_dbt_build
 
 
-def parse_months(raw_months: str) -> list[str]:
-    """Turn '2025-01,2025-02' into ['2025-01', '2025-02']."""
-    return [month.strip() for month in raw_months.split(",") if month.strip()]
+def months_from_option(
+    context: click.Context, parameter: click.Parameter, value: str
+) -> list[str]:
+    """Parse --months, turning a bad value into a clear usage error."""
+    try:
+        return parse_months(value)
+    except ValueError as error:
+        raise click.BadParameter(str(error)) from error
+
+
+def period_for(months: list[str]) -> ReportingPeriod:
+    """The reporting period for --months, or a usage error if the months have gaps."""
+    try:
+        return reporting_period(months)
+    except ValueError as error:
+        raise click.BadParameter(str(error), param_hint="'--months'") from error
 
 
 months_option = click.option(
     "--months",
-    default=",".join(DEFAULT_MONTHS),
+    default=f"{DEFAULT_MONTHS[0]}..{DEFAULT_MONTHS[-1]}",
     show_default=True,
-    help="Comma-separated list of YYYY-MM months.",
+    callback=months_from_option,
+    help="YYYY-MM months: a list (2025-01,2025-02) or a range (2024-10..2025-03).",
 )
 
 
@@ -39,38 +54,41 @@ def cli() -> None:
 @cli.command()
 @months_option
 @click.option("--force", is_flag=True, help="Download again even if already staged.")
-def download(months: str, force: bool) -> None:
+def download(months: list[str], force: bool) -> None:
     """Step 1: download the monthly Parquet files into data/raw/."""
-    download_months(parse_months(months), force=force)
+    download_months(months, force=force)
 
 
 @cli.command()
 @months_option
-def load(months: str) -> None:
+def load(months: list[str]) -> None:
     """Step 2: copy the staged files unchanged into Postgres (raw.green_trips)."""
-    load_raw_files(staged_paths(parse_months(months)), create_db_engine())
+    load_raw_files(staged_paths(months), create_db_engine())
 
 
 @cli.command()
-def transform() -> None:
-    """Step 3: build and test the dbt models (staging view, daily revenue table)."""
-    run_dbt_build()
+@months_option
+def transform(months: list[str]) -> None:
+    """Step 3: build and test the dbt models for the period the months cover."""
+    run_dbt_build(period_for(months))
 
 
 @cli.command()
-def report() -> None:
+@months_option
+def report(months: list[str]) -> None:
     """Step 4: reconcile row counts and write the outputs to data/processed/."""
-    export_outputs(create_db_engine())
+    export_outputs(create_db_engine(), period_for(months))
 
 
 @cli.command()
 @months_option
 @click.option("--force", is_flag=True, help="Download again even if already staged.")
-def run(months: str, force: bool) -> None:
+def run(months: list[str], force: bool) -> None:
     """Run every step in order: download, load, transform, report."""
-    selected_months = parse_months(months)
+    # Check the months before downloading anything.
+    period = period_for(months)
     engine = create_db_engine()
-    download_months(selected_months, force=force)
-    load_raw_files(staged_paths(selected_months), engine)
-    run_dbt_build()
-    export_outputs(engine)
+    download_months(months, force=force)
+    load_raw_files(staged_paths(months), engine)
+    run_dbt_build(period)
+    export_outputs(engine, period)

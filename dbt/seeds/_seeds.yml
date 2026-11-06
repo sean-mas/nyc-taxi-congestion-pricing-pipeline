@@ -1,0 +1,35 @@
+version: 2
+
+seeds:
+  - name: congestion_pricing_windows
+    description: >
+      The winters compared in fct_congestion_pricing_impact. Each is split on
+      5 January into before and after. Congestion pricing started on 5 January 2025;
+      the winter a year earlier has no fee and shows the normal seasonal change.
+    config:
+      column_types:
+        starts_on: date
+        splits_on: date
+        ends_on: date
+        has_congestion_pricing: boolean
+    columns:
+      - name: winter
+        data_tests:
+          - unique
+          - not_null
+      - name: starts_on
+        description: First day of the winter (included).
+        data_tests:
+          - not_null
+      - name: splits_on
+        description: First day of the "after" period.
+        data_tests:
+          - not_null
+      - name: ends_on
+        description: Day after the winter's last day (excluded).
+        data_tests:
+          - not_null
+      - name: has_congestion_pricing
+        description: True if the fee started on splits_on.
+        data_tests:
+          - not_null

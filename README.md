@@ -1,12 +1,83 @@
-# NYC Green Taxi: daily revenue pipeline
+# NYC Green Taxi: did congestion pricing change trips and revenue?
 
 [![CI](https://github.com/sean-mas/mle-data-pipeline-project/actions/workflows/ci.yml/badge.svg)](https://github.com/sean-mas/mle-data-pipeline-project/actions/workflows/ci.yml)
 
-An **ELT pipeline**, orchestrated with **Prefect**, that downloads the NYC Green Taxi trip records for January to March 2025, loads them unchanged into Postgres, and uses dbt to calculate revenue per day. It's the Spiced/neuefische data pipeline project; the original brief is in [course/project-brief.md](course/project-brief.md).
+A data pipeline that downloads NYC Green Taxi trip records, loads them into Postgres, turns them into revenue per day with dbt, and runs on a schedule with Prefect.
 
-**Result:** 146,486 trip records → 146,475 in the period → **90 days**, net revenue **$3,395,290.56** (gross $3,401,753.17, refunds −$6,462.61). Every step is tested, and running the pipeline twice gives the same numbers.
+**Result:** congestion pricing (from 5 January 2025) left no visible mark on Green Taxi trips or revenue. The drop after 5 January is the usual winter dip, and it was smaller than the year before. Over 18 months (October 2023 to March 2025): 1,001,104 trips in 548 days, net revenue $24,157,147.48. The course quarter alone (January to March 2025): 90 days, net revenue $3,395,290.56.
 
-![Net revenue per day](assets/daily_revenue.png)
+[Quick start](#quick-start) · [How it works](#how-it-works) · [Results](#results) · [Decisions](docs/decisions.md) · [Tests](#tests-and-checks)
+
+It started as the final project of the Spiced Academy (neuefische) data pipeline course, which asked for daily revenue for January to March 2025 ([brief](course/project-brief.md)), and was then extended to answer a real question.
+
+## Results
+
+**Question:** on 5 January 2025, New York started congestion pricing: taxi passengers pay $0.75 per trip into Manhattan below 60th Street. Did it change Green Taxi trips and revenue?
+
+**Answer: no sign that it did.** After 5 January, weekday trips fell 3.6% and fare revenue per day fell 10.6%. Over the same dates one year earlier, with no fee, they fell more: 10.5% and 17.3%. So the drop is the usual winter dip after the holidays. About 1 in 12 weekday trips paid the fee.
+
+![Weekday trips and fare revenue, winter 2024/25 with congestion pricing against winter 2023/24 without](assets/congestion_pricing.png)
+
+| Weekdays (Mon to Fri) | Before 5 Jan | After 5 Jan | Change | Change a year earlier, no fee |
+|---|---:|---:|---:|---:|
+| Trips per day | 1,834 | 1,768 | −3.6% | −10.5% |
+| Fare revenue per day | $40,022 | $35,767 | −10.6% | −17.3% |
+| Net revenue per day | $44,481 | $40,706 | −8.5% | −16.7% |
+| Fare revenue per trip | $21.82 | $20.23 | −7.3% | −7.6% |
+| Share of trips charged the fee | 0% | 8.3% | | 0% |
+
+"Before" is 1 October 2024 to 4 January 2025, "after" is 5 January to 31 March 2025; the last column splits the winter before on 5 January 2024. Weekends show the same pattern: trips −12.6% against −14.4% a year earlier. **Net revenue** is everything passengers paid (`total_amount`), taxes and the fee included. **Fare revenue** is fare + extras + tips: what the driver and the taxi company keep.
+
+Why compare with the year before: [decision 12](docs/decisions.md#12-compare-with-the-winter-before). What this can't tell you: [Limitations](#limitations).
+
+## Quick start
+
+You need [uv](https://docs.astral.sh/uv/) 0.13.5 or newer and [Docker Desktop](https://www.docker.com/products/docker-desktop/), running.
+
+```bash
+uv sync
+cp .env.example .env
+docker compose up -d --wait
+uv run green-taxi run
+```
+
+The run downloads 18 monthly files (about 25 MB) and takes a minute or two. You should see this as the last line:
+
+```text
+INFO green_taxi.report: rows: 1,001,121 raw -> 1,001,104 in period -> 548 days; net revenue $24,157,147.48
+```
+
+The results are in `data/processed/`: daily revenue (CSV and Parquet), the congestion pricing comparison (CSV), two charts and `quality_report.json`. To check the course result for January to March 2025 only:
+
+```bash
+uv run green-taxi run --months 2025-01..2025-03
+```
+
+You should see `rows: 146,486 raw -> 146,475 in period -> 90 days; net revenue $3,395,290.56`. `--months` takes a list (`2025-01,2025-02`) or a range; the months must follow each other. Steps one at a time: `green-taxi download`, `load`, `transform`, `report`.
+
+**With Prefect.** The Prefect server must be running, in its own terminal (web UI at http://127.0.0.1:4200):
+
+```bash
+uv run prefect server start
+```
+
+Then, in a second terminal, run the flow once (it takes the same `--months` option), or serve it with a monthly schedule and a Run button in the UI:
+
+```bash
+uv run python -m green_taxi.flow
+uv run python -m green_taxi.flow --serve
+```
+
+## Tech stack and why
+
+| Tool | What it does here, and why |
+|---|---|
+| [uv](https://docs.astral.sh/uv/) | Installs Python and the packages from one lock file, so every machine gets the same versions. |
+| Postgres 17 in Docker | The database for the raw and cleaned tables. One command starts it; nothing else to install. |
+| [dbt](https://docs.getdbt.com/) | SQL files that build tables in order and test them. A failing test stops the run. |
+| [Prefect](https://docs.prefect.io/) | Runs the steps, retries failures, shows each run in a web UI. Downloads can fail for a moment; a retry usually fixes it. |
+| pytest + ruff | pytest tests the Python code; ruff checks style and common mistakes. |
+| GitHub Actions | Runs ruff and every test against a real Postgres on each pull request. |
 
 ## How it works
 
@@ -17,135 +88,80 @@ flowchart LR
         E["Extract<br/>extract.py"] --> L["Load<br/>load.py"] --> T["Transform<br/>dbt build"] --> R["Report<br/>report.py"]
     end
     TLC(["NYC TLC<br/>Parquet files"]) --> E
-    E -.-> RAW[/"data/raw/<br/>3 files, never edited"/]
-    L -.-> PG[("Postgres<br/>raw.green_trips")]
-    T -.-> STG[("staging.stg_green_trips<br/>view")]
-    T -.-> MART[("marts.fct_daily_revenue<br/>table, 90 rows")]
+    E -.-> RAW[/"data/raw/<br/>one file per month, never edited"/]
+    L -.-> PG[("Raw table<br/>raw.green_trips")]
+    T -.-> STG[("Cleaned trips<br/>staging.stg_green_trips")]
+    T -.-> DAILY[("Final daily table<br/>marts.fct_daily_revenue")]
+    T -.-> IMPACT[("Before/after comparison<br/>marts.fct_congestion_pricing_impact")]
     R -.-> OUT[/"data/processed/<br/>CSV · Parquet · PNG · JSON"/]
 ```
 
 | Step | What happens | Where |
 |---|---|---|
-| 1. Extract | Downloads one Parquet file per month into `data/raw/`. Files already there are reused; an interrupted download is never mistaken for a finished one. | [extract.py](src/green_taxi/extract.py) |
-| 2. Load | Copies each file unchanged into `raw.green_trips`, plus `source_file` and `loaded_at`. One transaction per file deletes that file's old rows first, so re-runs never duplicate data. | [load.py](src/green_taxi/load.py) |
-| 3. Transform | dbt builds a staging view (renamed, typed, Q1 2025 only, refunds flagged) and the daily revenue table, then runs 15 data tests. A failing test stops the pipeline. | [dbt/models/](dbt/models/) |
-| 4. Report | Counts rows at every stage and writes the result as CSV, Parquet, a chart and `quality_report.json`. | [report.py](src/green_taxi/report.py) |
-| Orchestrate | The same functions as Prefect tasks: parallel downloads with 3 retries, every dbt model and test as its own task, and the result table plus a row-count report in the Prefect UI. A `monthly` deployment runs on a schedule or from a Run button. | [flow.py](src/green_taxi/flow.py) |
+| 1. Extract | Downloads one Parquet file per month into `data/raw/`, reusing files already there. | [extract.py](src/green_taxi/extract.py) |
+| 2. Load | Copies each file unchanged into `raw.green_trips`, adding the file name and load time. Each file's old rows are replaced in one transaction, so re-runs never duplicate data. | [load.py](src/green_taxi/load.py) |
+| 3. Transform | dbt keeps the chosen months, renames and types the columns, flags refunds, builds the daily table and the before/after comparison, and runs 34 tests. | [dbt/](dbt/) |
+| 4. Report | Counts rows at every stage and writes the outputs to `data/processed/`. | [report.py](src/green_taxi/report.py) |
+| Orchestrate | The same functions as Prefect tasks: parallel downloads with 3 retries, each dbt table and test as its own task, and the results as tables in the Prefect UI. | [flow.py](src/green_taxi/flow.py) |
 
-![Prefect flow run](assets/prefect_flow_run.jpg)
+The raw data is stored first and cleaned with SQL afterwards (ELT, not ETL). That choice and the others are in [docs/decisions.md](docs/decisions.md).
 
-### Why ELT and not ETL
-
-- **ETL** (extract, transform, load) cleans the data in Python *before* it's stored. The reference solution in `solution/` works this way with pandas.
-- **ELT** (extract, load, transform) stores the raw data *first*, then cleans it with SQL inside the database.
-
-This pipeline uses ELT because:
-- The raw copy in Postgres stays untouched, so a cleaning rule can change and be re-run in SQL without downloading again.
-- dbt splits the SQL into layers (raw → staging → mart) and tests each one. This is how analytics teams usually work.
-- Every row can be traced back to its source file.
+![Prefect flow run (an earlier three-month run)](assets/prefect_flow_run.jpg)
 
 ## What the data needed
 
-Findings from [notebooks/01_explore_green_taxi.ipynb](notebooks/01_explore_green_taxi.ipynb), and the rule each one led to:
+From exploring January to March 2025 in [the notebook](notebooks/01_explore_green_taxi.ipynb), then checking all 18 months:
 
 | Finding | Rule |
 |---|---|
-| 11 trips are dated outside Jan 1 to Mar 31, 2025 (some in December 2024, some on April 1) | Keep only pickups in the period, so the result has exactly 90 days. Without this rule there would be 94 |
-| 62 more trips sit in a neighbouring month's file (e.g. a Jan 31 trip in the February file) | Group by pickup date across all files, not per file |
-| 478 rows have a negative `total_amount` (refunds, disputes, voids), −$6,462.61 in total | Count them apart from trips: `gross_revenue`, `refunds`, `net_revenue` |
-| 254 trips have a `total_amount` of $0 | Count them as trips with no revenue |
-| 7,902 trips have no `payment_type`, but their amounts look normal | Keep them |
-| 2 trips are over $500 (max $642.14) | Keep them, and list them in the quality report |
+| Some trips are dated outside their file's month (11 outside January to March 2025, e.g. 1 April) | Keep only pickups inside the period, so there's exactly one row per day |
+| Some trips sit in a neighbouring month's file (62 in January to March 2025) | Count each trip on its pickup date, across all chosen files |
+| Negative `total_amount`: refunds, disputes and voids (3,235 rows in 18 months, −$43,198.42) | Count them apart from trips: gross revenue, refunds, net revenue |
+| $0 trips and trips without a `payment_type` whose amounts look normal | Keep them as trips |
+| Trips over $500 (53 in 18 months, the largest $3,527.30) | Keep them, and list them in `quality_report.json` |
+| Files before 2025 have no `cbd_congestion_fee` column | Create the raw table from a fixed column list |
+| The fee appears only from 5 January 2025: 11,986 trips at $0.75 | A test fails if an earlier trip has it |
+| The amount columns don't always add up to `total_amount` (about 14% of rows) | Add up fare revenue from its own three columns |
 | No duplicate rows | No deduplication step |
 
-**Revenue definition:** `net_revenue` for a day is the sum of `total_amount` (fare, extras, taxes, tip, tolls and surcharges) for trips picked up that day, refunds included.
+## Limitations
 
-## Results
+- **Revenue isn't profit.** Net revenue is `total_amount`: what passengers paid, including taxes, tolls and surcharges that go to the city, the state and the MTA. Fare revenue leaves those out, but neither subtracts any costs. Cash tips aren't recorded in the data at all; only card tips are.
+- **The results describe the published files.** Trips the TLC didn't publish, or corrects later, aren't reflected until the files change.
+- **The congestion pricing comparison covers two winters.** Other things changed between them: Green Taxi weekday trips were already 17% lower than a year earlier before the fee (the fleet keeps shrinking), the weather differs, and holidays fall on different weekdays. So "no sign of an effect" is the honest reading; the smaller dip in 2024/25 can't be credited to the fee either.
+- **It's about Green Taxis only.** They can't pick up street hails in Manhattan below West 110th and East 96th Street, so most of their trips never enter the fee zone. It says nothing about yellow cabs or ride-hailing apps.
+- **The schedule re-runs a fixed period.** The `monthly` deployment processes the same months every time; it doesn't add new months as the TLC publishes them.
+- **Prefect runs need the local server.** Without `uv run prefect server start`, flow runs fail with "Failed to reach API".
 
-| Month | Days | Trips | Net revenue |
-|---|---:|---:|---:|
-| January 2025 | 31 | 48,136 | $1,092,994.80 |
-| February 2025 | 28 | 46,479 | $1,067,222.12 |
-| March 2025 | 31 | 51,382 | $1,235,073.64 |
-| **Total** | **90** | **145,997** | **$3,395,290.56** |
+## Tests and checks
 
-- Average day: $37,725. Busiest day: Thursday, March 13 ($48,362). Quietest: Sunday, January 19 ($23,401).
-- Weekdays earn more than weekends: Thursdays average $43,454, Sundays $30,005.
+Run them with `uv run pytest`. The integration tests need the Postgres container and use a separate `green_taxi_test` database.
+
+- **Unit tests** ([extract](tests/test_extract.py), [months](tests/test_months.py), [command line](tests/test_cli.py)): download links, reusing files and failed downloads without any network calls; month lists and ranges; months with a gap stop a run before anything is downloaded.
+- **Integration tests** ([load](tests/test_load.py), [end to end](tests/test_pipeline_e2e.py)): a file without the fee column loads before one with it, and an unknown column is rejected. Nine hand-made trips (a refund, a $0 trip, a missing payment type, one outside the period, trips with and without the fee on both sides of 5 January) go through load, dbt and report, and the exact daily rows and weekday comparison are checked. Files from months that weren't chosen don't count.
+- **dbt tests** (on every run): one row per day, no missing values, no day outside the period, totals that match the cleaned trips to the cent, every compared day counted once, and no fee before 5 January 2025.
+- **CI** ([workflow](.github/workflows/ci.yml)): ruff and all tests on every pull request.
 
 ## Project structure
 
 ```
-├── data/raw/                 # staged downloads (not in git)
-├── data/processed/           # daily revenue outputs (not in git)
-├── dbt/                      # transform layer: staging and mart models, tests
-├── notebooks/                # exploration only, not part of the pipeline
-├── src/green_taxi/
-│   ├── config.py             # months, source URL, paths, database settings
-│   ├── extract.py            # step 1
-│   ├── load.py               # step 2
-│   ├── transform.py          # step 3 (runs dbt)
-│   ├── report.py             # step 4
-│   ├── pipeline.py           # plain CLI: green-taxi download | load | transform | report | run
-│   └── flow.py               # Prefect flow and deployment
-├── tests/                    # unit tests (extract) and integration tests (load, end to end)
-├── docker-compose.yaml       # Postgres 17 on port 5433
-├── course/                   # original project brief
-└── solution/                 # the course's ETL reference solution, untouched
+├── data/raw/            # downloaded files (not in git)
+├── data/processed/      # outputs (not in git)
+├── dbt/
+│   ├── models/          # staging: cleaned trips; marts: final tables
+│   ├── seeds/           # the two winters compared, as a CSV
+│   └── tests/           # reconciliation and fee checks
+├── docs/decisions.md    # why the pipeline is built this way
+├── notebooks/           # exploration only, not part of the pipeline
+├── src/green_taxi/      # extract, load, transform, report, CLI and Prefect flow
+├── tests/
+├── course/              # the original course brief
+├── solution/            # the course's reference solution, untouched
+└── PORTFOLIO.md         # what to change before making the repo public
 ```
 
-## How to run
-
-Needs [uv](https://docs.astral.sh/uv/) 0.13.5+ and Docker Desktop.
-
-```bash
-uv sync
-cp .env.example .env
-docker compose up -d --wait
-```
-
-Run the plain pipeline (no Prefect):
-
-```bash
-uv run green-taxi run
-```
-
-Or one step at a time: `green-taxi download`, `load`, `transform`, `report`. Outputs land in `data/processed/`.
-
-Run it with Prefect. Start the server in its own terminal and keep it open (UI at http://127.0.0.1:4200):
-
-```bash
-uv run prefect server start
-```
-
-Then run the flow once:
-
-```bash
-uv run python -m green_taxi.flow
-```
-
-Or serve it as the `monthly` deployment, with a schedule and a Run button in the UI:
-
-```bash
-uv run python -m green_taxi.flow --serve
-```
-
-Run the tests (the integration tests need the Postgres container):
-
-```bash
-uv run pytest
-```
-
-> [!NOTE]
-> `.env` sets `PREFECT_API_URL` to the local server. If the server isn't running, Prefect runs fail with "Failed to reach API". Start the server first.
-
-## Tests and checks
-
-- **Unit tests** ([tests/test_extract.py](tests/test_extract.py)): URL building, month validation, reusing staged files and failed downloads, without any network calls.
-- **Integration tests** ([tests/test_load.py](tests/test_load.py), [tests/test_pipeline_e2e.py](tests/test_pipeline_e2e.py)): six hand-made trips (a refund, a $0 trip, a missing payment type, one from 2024) go through load → dbt → report against a separate `green_taxi_test` database, and the exact daily rows are checked.
-- **dbt tests** (run on every pipeline run): one row per day, no missing values, no day outside the period, and mart totals that match staging to the cent.
-- **CI** ([.github/workflows/ci.yml](.github/workflows/ci.yml)): ruff lint and format checks plus all tests against Postgres on every pull request.
-
-## Answers to the project questions
+<details>
+<summary>Course reflection (3 review questions)</summary>
 
 > **Draft notes, not final answers.** Sean: rewrite these in your own words before submitting.
 
@@ -168,3 +184,5 @@ uv run pytest
 - Add a taxi-zone lookup and payment-type seed to break revenue down by borough and payment method.
 - Publish dbt docs (a lineage graph) and add a small dashboard.
 - Use Postgres `COPY` for faster loads at larger volumes, and set up a Prefect alert for failed runs.
+
+</details>

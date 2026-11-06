@@ -12,6 +12,14 @@ models:
         description: Full charge (fare, extras, taxes, tip, tolls, surcharges); negative for refunds.
         data_tests:
           - not_null
+      - name: fare_revenue
+        description: fare_amount + extra + tip_amount, the part the driver and taxi company keep.
+        data_tests:
+          - not_null
+      - name: cbd_congestion_fee
+        description: Congestion pricing fee ($0.75 for taxis); zero before 5 January 2025.
+        data_tests:
+          - not_null
       - name: is_refund
         data_tests:
           - not_null

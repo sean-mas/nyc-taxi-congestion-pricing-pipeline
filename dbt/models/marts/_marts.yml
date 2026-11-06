@@ -28,3 +28,55 @@ models:
         description: gross_revenue + refunds. This is the revenue per day the brief asks for.
         data_tests:
           - not_null
+      - name: fare_revenue
+        description: >
+          Fare + extras + tips over the same rows as net_revenue (refunds included).
+          Leaves out the taxes, tolls and surcharges that are passed on to others.
+        data_tests:
+          - not_null
+      - name: cbd_fee_trip_count
+        description: Trips (not refunds) charged the congestion pricing fee.
+        data_tests:
+          - not_null
+
+  - name: fct_congestion_pricing_impact
+    description: >
+      One row per winter, day type (weekday, weekend) and period (before or after
+      5 January), with trips and revenue per day and per trip. Compare a winter's
+      change with the other winter's change to separate the fee from the season.
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "winter || ' ' || day_type || ' ' || period"
+    columns:
+      - name: winter
+        description: From congestion_pricing_windows, e.g. 2024/25.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('congestion_pricing_windows')
+                field: winter
+      - name: day_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["weekday", "weekend"]
+      - name: period
+        description: before or after splits_on (5 January).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["before", "after"]
+      - name: days
+        data_tests:
+          - not_null
+      - name: trips_per_day
+        data_tests:
+          - not_null
+      - name: net_revenue_per_trip
+        description: net_revenue / trips, in USD.
+      - name: fare_revenue_per_trip
+        description: fare_revenue / trips, in USD.
+      - name: cbd_fee_trip_share
+        description: Share of trips charged the congestion pricing fee (0 to 1).
