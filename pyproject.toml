@@ -1,7 +1,7 @@
 [project]
-name = "mle-data-pipeline-project"
+name = "nyc-taxi-congestion-pricing-pipeline"
 version = "0.1.0"
-description = "ELT pipeline: NYC Green Taxi trips to daily revenue and a congestion pricing comparison, orchestrated with Prefect."
+description = "ELT pipeline (Postgres, dbt, Prefect) testing whether NYC congestion pricing changed Green Taxi trips and revenue."
 requires-python = ">=3.13.17"
 dependencies = [
     "click>=8.5.0",
@@ -25,7 +25,7 @@ requires = ["uv_build>=0.13.5,<0.14"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-# The distribution keeps the template's name; the importable package is green_taxi.
+# The importable package is green_taxi.
 module-name = "green_taxi"
 
 [dependency-groups]
@@ -40,6 +40,10 @@ testpaths = ["tests"]
 markers = [
     "integration: needs the Postgres container (docker compose up -d --wait)",
 ]
+
+[tool.prefect.logging]
+# Show the green_taxi module's log lines in Prefect, with or without a .env file.
+extra_loggers = "green_taxi"
 
 [tool.ruff]
 extend-exclude = ["solution"]
