@@ -6,9 +6,11 @@ The repo is private. Making it public is Sean's decision; nothing here has been 
 
 1. **Remove `solution/`.** It's the course's reference solution, not this project's work, and it comes from a private course repo (`neuefische/mle-data-pipeline-project`). Then clean up what points at it:
    - `pyproject.toml`: drop `extend-exclude = ["solution"]` under `[tool.ruff]` and `"solution/src"` from `root` under `[tool.ty.environment]`.
-   - `README.md`: the "Why ELT and not ETL" bullet that mentions `solution/`, and its line in "Project structure".
-2. **Remove `course/`.** The brief is course material from the same private repo, and `project-answers.md` is a draft for the course submission. Then:
+   - `README.md`: the `solution/` line in "Project structure".
+   - `docs/decisions.md`: decision 1 mentions the reference solution; keep the idea, drop the pointer.
+2. **Remove `course/`.** The brief is course material from the same private repo. Then:
    - `README.md`: the sentence linking to `course/project-brief.md` (keep a plain mention of the course, without the link) and the `course/` line in "Project structure".
+   - `README.md`: the "Course reflection" block at the bottom stays for the course for now. Before going public, keep it only once it's in your own words, or remove it.
    - `.github/pull_request_template.md` is the course's submission checklist. Delete it, or replace it with a short template of your own.
 3. **Keep `LICENSE` as it is.** It's the MIT license from the course template, copyright neuefische GmbH. MIT allows reusing and publishing the code only if that copyright line and the permission text stay. You may add your own line under it for your changes (for example `Copyright (c) 2026 Sean Kress`), but don't remove or replace neuefische's line.
 4. **Start the public repo without the old history.** Deleting files in a new commit doesn't remove them from git history: anyone can open an old commit and read `solution/` and `course/`. The history also holds the template's commits by five course authors, with their email addresses, from a repo that is private.
