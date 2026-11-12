@@ -6,7 +6,7 @@ A data pipeline that downloads NYC Green Taxi trip records, loads them into Post
 
 **Result:** congestion pricing (from 5 January 2025) left no visible mark on Green Taxi trips or revenue. The drop after 5 January is the usual winter dip, and it was smaller than the year before. Over 18 months (October 2023 to March 2025): 1,001,104 trips in 548 days, net revenue $24,157,147.48. The course quarter alone (January to March 2025): 90 days, net revenue $3,395,290.56.
 
-[Context](#context) · [Results](#results) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Decisions](docs/decisions.md) · [Tests](#tests-and-checks) · [Review questions](#review-questions)
+[Context](#context) · [Results](#results) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Decisions](docs/decisions.md) · [Tests](#tests-and-checks) · [Review questions](#review-questions) · [Presentation](docs/presentation.pdf)
 
 ## Context
 
@@ -15,6 +15,7 @@ A data pipeline that downloads NYC Green Taxi trip records, loads them into Post
 - **What I added:** an ELT design (raw data in Postgres, cleaning in tested dbt SQL), checks that stop a run before a wrong number reaches the output, CI on every pull request, and a Prefect flow with retries, result tables in its web UI and a schedule. I then extended the pipeline from 3 to 18 months to answer a real question about congestion pricing.
 - **Cross-check:** a classmate's independently built pipeline reached the same January to March numbers: 146,475 trips, 90 days, $3,395,290.56.
 - **How it was built:** with [Claude Code](https://claude.com/claude-code) as an AI pair programmer. The choices and trade-offs behind it are in [docs/decisions.md](docs/decisions.md).
+- **Presentation:** the 5-minute project talk as [slides (PDF)](docs/presentation.pdf), with its [speaker notes](docs/presentation-notes.md).
 
 ## Results
 
@@ -164,7 +165,9 @@ Run them with `uv run pytest`. The integration tests need the Postgres container
 │   ├── models/          # staging: cleaned trips; marts: final tables
 │   ├── seeds/           # the two winters compared, as a CSV
 │   └── tests/           # reconciliation and fee checks
-├── docs/decisions.md    # why the pipeline is built this way
+├── docs/
+│   ├── decisions.md     # why the pipeline is built this way
+│   └── presentation.pdf # the 5-minute talk, with presentation-notes.md
 ├── exploration/         # notebook for exploring the data, not part of the pipeline
 ├── src/green_taxi/      # extract, load, transform, report, CLI and Prefect flow
 └── tests/
